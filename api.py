@@ -1,0 +1,112 @@
+from flask import Flask, jsonify, request
+import sqlite3
+
+app = Flask(__name__)
+
+# get method
+@app.route('/api/products', methods=['GET'])
+def get_products():
+    # 1. Open the warehouse
+    conn = sqlite3.connect('inventory.db')
+    cursor = conn.cursor()
+
+    # 2. Ask the question
+    cursor.execute("SELECT * FROM products")
+    items = cursor.fetchall()
+
+    # 3. Lock the doors
+    cursor.close()
+    conn.close()
+
+    # Convert the raw lists into labeled dictionaries
+    product_list = []
+    for row in items:
+        product_list.append({
+            "id": row[0],
+            "name": row[1],
+            "category": row[2],
+            "stock_quantity": row[3],
+            "price": row[4]
+        })
+
+    # 4. Hand the data out the drive-thru window
+    return jsonify(items)
+
+
+# post method 
+@app.route('/api/products', methods=['POST'])
+def add_product():
+    # 1. Catch the JSON data sent by the client
+    new_item = request.get_json()
+    
+    # 2. Open the warehouse
+    conn = sqlite3.connect('inventory.db')
+    cursor = conn.cursor()
+    
+    # 3. Securely insert the new item
+    cursor.execute(
+        "INSERT INTO products (name, category, stock_quantity, price) VALUES (?, ?, ?, ?)", 
+        (new_item['name'], new_item['category'], new_item['stock_quantity'], new_item['price'])
+    )
+    
+    # 4. Save and lock up
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    # 5. Send a success receipt back to the client
+    return jsonify({"status": "success", "message": f"{new_item['name']} added to inventory!"}), 201
+
+
+# update method
+@app.route('/api/products/<int:item_id>', methods=['PUT'])
+def update_stock(item_id):
+    # 1. Catch the incoming data (how much stock to add/subtract)
+    update_data = request.get_json()
+    new_stock_value = update_data['stock_quantity']
+    
+    # 2. Open the warehouse
+    conn = sqlite3.connect('inventory.db')
+    cursor = conn.cursor()
+    
+    # 3. Update only the specific item using its ID
+    cursor.execute(
+        "UPDATE products SET stock_quantity = ? WHERE id = ?", 
+        (new_stock_value, item_id)
+    )
+    
+    # 4. Save and lock up
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    return jsonify({"status": "success", "message": f"Item ID {item_id} stock updated to {new_stock_value}!"}), 200
+
+
+
+# delete method
+@app.route('/api/products/<int:item_id>', methods=['DELETE'])
+def delete_stock(item_id):
+    
+    # 2. Open the warehouse
+    conn = sqlite3.connect('inventory.db')
+    cursor = conn.cursor()
+    
+    # 3. Update only the specific item using its ID
+    cursor.execute(
+        "DELETE FROM products WHERE id = ?", 
+        (item_id,)
+    )
+    
+    # 4. Save and lock up
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    return jsonify({"status": "success", "message": f"Item ID {item_id} stock deleted!"}), 200
+
+
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
