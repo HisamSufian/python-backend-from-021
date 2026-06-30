@@ -10,27 +10,31 @@ def get_products():
     conn = sqlite3.connect('inventory.db')
     cursor = conn.cursor()
 
-    # 2. Ask the question
-    cursor.execute("SELECT * FROM products")
+    # 2. Execute the LEFT JOIN query
+    cursor.execute("""
+        SELECT products.id, products.name, products.price, products.quantity, suppliers.name 
+        FROM products
+        LEFT JOIN suppliers ON products.supplier_id = suppliers.id
+    """)
     items = cursor.fetchall()
 
     # 3. Lock the doors
     cursor.close()
     conn.close()
 
-    # Convert the raw lists into labeled dictionaries
-    product_list = []
+    # 3. Format the data into clean JSON
+    inventory_list = []
     for row in items:
-        product_list.append({
+        inventory_list.append({
             "id": row[0],
             "name": row[1],
-            "category": row[2],
-            "stock_quantity": row[3],
-            "price": row[4]
+            "price": row[2],
+            "quantity": row[3],
+            "supplier": row[4] # This will beautifully output 'null' in JSON for the Avocados!
         })
 
     # 4. Hand the data out the drive-thru window
-    return jsonify(items)
+    return jsonify(inventory_list), 200
 
 
 # post method 
