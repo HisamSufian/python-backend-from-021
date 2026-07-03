@@ -1,5 +1,17 @@
+import os
 from flask import Flask, jsonify, request
 import sqlite3
+from dotenv import load_dotenv
+
+# Load the environment variables from the .env file
+load_dotenv()
+
+# Access the secret key
+SECRET_KEY = os.getenv("WAREHOUSE_SECRET_KEY")
+
+# Temporary print statement to verify it's working (we'll remove this later)
+print(f"\n[SECURITY] Loaded Secret Key: {SECRET_KEY}\n")
+
 
 app = Flask(__name__)
 
