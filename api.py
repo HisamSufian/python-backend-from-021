@@ -46,7 +46,21 @@ def add_product():
     # 2. Open the warehouse
     conn = sqlite3.connect('inventory.db')
     cursor = conn.cursor()
-    
+
+
+    # 1. Check for missing fields
+    if 'name' not in new_item or 'price' not in new_item or 'quantity' not in new_item:
+        return jsonify({"error": "Missing required fields: name, price, and quantity are mandatory"}), 400
+
+    # 2. Check for invalid data types or negative numbers
+    if type(new_item['price']) not in [int, float] or new_item['price'] < 0:
+        return jsonify({"error": "Price must be a positive number"}), 400
+        
+    if type(new_item['quantity']) != int or new_item['quantity'] < 0:
+        return jsonify({"error": "Quantity must be a positive integer"}), 400  
+
+
+
     # 3. Securely insert the new item
     cursor.execute(
         "INSERT INTO products (name, category, stock_quantity, price) VALUES (?, ?, ?, ?)", 
