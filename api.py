@@ -117,7 +117,10 @@ def update_stock(item_id):
 # delete method
 @app.route('/api/products/<int:item_id>', methods=['DELETE'])
 def delete_stock(item_id):
-    
+    provided_key = request.headers.get('X-API-Key')
+    if provided_key != SECRET_KEY:
+        return jsonify({"error": "Unauthorized: Invalid or missing API Key"}), 401
+
     # 2. Open the warehouse
     conn = sqlite3.connect('inventory.db')
     cursor = conn.cursor()
@@ -127,12 +130,17 @@ def delete_stock(item_id):
         "DELETE FROM products WHERE id = ?", 
         (item_id,)
     )
+    rows_deleted = cursor.rowcount # Check how many rows were actually removed
     
     # 4. Save and lock up
     conn.commit()
     cursor.close()
     conn.close()
-    
+
+    if rows_deleted == 0:
+        # If no rows were deleted, the ID didn't exist
+        return jsonify({"error": "Product not found"}), 404
+        
     return jsonify({"status": "success", "message": f"Item ID {item_id} stock deleted!"}), 200
 
 
