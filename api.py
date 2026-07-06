@@ -15,38 +15,42 @@ print(f"\n[SECURITY] Loaded Secret Key: {SECRET_KEY}\n")
 
 app = Flask(__name__)
 
-# get method
 @app.route('/api/products', methods=['GET'])
 def get_products():
-    # 1. Open the warehouse
+    # 1. Check if the user provided a '?search=' parameter in the URL
+    search_term = request.args.get('search')
+
     conn = sqlite3.connect('inventory.db')
+    conn.row_factory = sqlite3.Row  # This lets us access columns by name
     cursor = conn.cursor()
-
-    # 2. Execute the LEFT JOIN query
-    cursor.execute("""
-        SELECT products.id, products.name, products.price, products.quantity, suppliers.name 
-        FROM products
-        LEFT JOIN suppliers ON products.supplier_id = suppliers.id
-    """)
-    items = cursor.fetchall()
-
-    # 3. Lock the doors
+    
+    # 2. Modify the SQL query based on whether a search term exists
+    if search_term:
+        # The % symbols are SQL wildcards. '%Carrot%' means "contains the word Carrot anywhere"
+        search_pattern = f"%{search_term}%"
+        cursor.execute("""
+            SELECT products.id, products.name, products.price, products.quantity, suppliers.name as supplier_name 
+            FROM products 
+            LEFT JOIN suppliers ON products.supplier_id = suppliers.id
+            WHERE products.name LIKE ?
+        """, (search_pattern,))
+    else:
+        # If no search term, return everything (your original Target 3 logic)
+        cursor.execute("""
+            SELECT products.id, products.name, products.price, products.quantity, suppliers.name as supplier_name 
+            FROM products 
+            LEFT JOIN suppliers ON products.supplier_id = suppliers.id
+        """)
+        
+    rows = cursor.fetchall()
+    
+    # 3. Format the data for the frontend
+    products = [dict(row) for row in rows]
+        
     cursor.close()
     conn.close()
-
-    # 3. Format the data into clean JSON
-    inventory_list = []
-    for row in items:
-        inventory_list.append({
-            "id": row[0],
-            "name": row[1],
-            "price": row[2],
-            "quantity": row[3],
-            "supplier": row[4] # This will beautifully output 'null' in JSON for the Avocados!
-        })
-
-    # 4. Hand the data out the drive-thru window
-    return jsonify(inventory_list), 200
+    
+    return jsonify(products), 200
 
 
 # post method 
