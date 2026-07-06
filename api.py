@@ -1,6 +1,7 @@
 import os
 from flask import Flask, jsonify, request
 import sqlite3
+from flask_cors import CORS
 from dotenv import load_dotenv
 
 # Load the environment variables from the .env file
@@ -14,6 +15,8 @@ print(f"\n[SECURITY] Loaded Secret Key: {SECRET_KEY}\n")
 
 
 app = Flask(__name__)
+CORS(app)
+
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
