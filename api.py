@@ -89,28 +89,51 @@ def add_product():
     
 
 # update method
-@app.route('/api/products/<int:item_id>', methods=['PUT'])
-def update_stock(item_id):
+@app.route('/api/products/<int:product_id>', methods=['PUT'])
+def update_stock(product_id):
+    provided_key = request.headers.get('X-API-Key')
+    if provided_key != SECRET_KEY:
+        return jsonify({"error": "Unauthorized: Invalid or missing API Key"}), 401
+
+
     # 1. Catch the incoming data (how much stock to add/subtract)
-    update_data = request.get_json()
-    new_stock_value = update_data['stock_quantity']
+    data = request.get_json()
     
+    # --- 2. Input Validation (Ensuring reasonable data if provided) ---
+    if 'price' in data and (type(data['price']) not in [int, float] or data['price'] < 0):
+        return jsonify({"error": "Price must be a positive number"}), 400
+        
+    if 'quantity' in data and (type(data['quantity']) != int or data['quantity'] < 0):
+        return jsonify({"error": "Quantity must be a positive integer"}), 400
+
+
     # 2. Open the warehouse
     conn = sqlite3.connect('inventory.db')
     cursor = conn.cursor()
     
-    # 3. Update only the specific item using its ID
-    cursor.execute(
-        "UPDATE products SET stock_quantity = ? WHERE id = ?", 
-        (new_stock_value, item_id)
-    )
+
+    cursor.execute("SELECT id FROM products WHERE id = ?", (product_id,))
+    if not cursor.fetchone():
+        cursor.close()
+        conn.close()
+        return jsonify({"error": "Product not found"}), 404
+
+    # Dynamically update only the fields provided in the JSON request
+    if 'name' in data:
+        cursor.execute("UPDATE products SET name = ? WHERE id = ?", (data['name'], product_id))
+    if 'price' in data:
+        cursor.execute("UPDATE products SET price = ? WHERE id = ?", (data['price'], product_id))
+    if 'quantity' in data:
+        cursor.execute("UPDATE products SET quantity = ? WHERE id = ?", (data['quantity'], product_id))
+    if 'supplier_id' in data:
+        cursor.execute("UPDATE products SET supplier_id = ? WHERE id = ?", (data['supplier_id'], product_id))
     
     # 4. Save and lock up
     conn.commit()
     cursor.close()
     conn.close()
     
-    return jsonify({"status": "success", "message": f"Item ID {item_id} stock updated to {new_stock_value}!"}), 200
+    return jsonify({"status": "success", "message": f"Item ID {product_id} updated successfully!"}), 200
 
 
 
@@ -140,7 +163,7 @@ def delete_stock(item_id):
     if rows_deleted == 0:
         # If no rows were deleted, the ID didn't exist
         return jsonify({"error": "Product not found"}), 404
-        
+
     return jsonify({"status": "success", "message": f"Item ID {item_id} stock deleted!"}), 200
 
 
